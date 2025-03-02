@@ -1,0 +1,16 @@
+# Ignorar entorno virtual
+venv/
+env/
+
+# Ignorar archivos de configuración y bases de datos locales
+*.sqlite3
+*.pyc
+__pycache__/
+
+# Ignorar configuraciones de VSCode y PyCharm
+.vscode/
+.idea/
+
+# Archivos de dependencias
+.DS_Store
+.env
