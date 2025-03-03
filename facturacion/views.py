@@ -1,20 +1,17 @@
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Usuario, Producto, Factura, FacturaDetalle, PrecioEspecial, Descuento
 from .serializers import UsuarioSerializer, ProductoSerializer, FacturaSerializer, FacturaDetalleSerializer, PrecioEspecialSerializer, DescuentoSerializer
+from .business.factura_logic import FacturaLogic
 
-
-from django.http import JsonResponse
-
+# Página de bienvenida
 def api_root(request):
     return JsonResponse({"message": "Bienvenido a la API de FerreFactura"})
 
-
-# Página de bienvenida
 def home(request):
     return HttpResponse("¡Bienvenido a FerreFactura!")
 
@@ -40,6 +37,17 @@ class FacturaViewSet(viewsets.ModelViewSet):
     serializer_class = FacturaSerializer
     permission_classes = [IsAuthenticated]
 
+    def create(self, request, *args, **kwargs):
+        """
+        Sobrescribimos el método `create` para usar la lógica de negocio
+        al momento de registrar una factura.
+        """
+        try:
+            factura = FacturaLogic.procesar_factura(request.data)
+            return Response({"message": "Factura creada con éxito!", "id": factura.id})
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+
 class FacturaDetalleViewSet(viewsets.ModelViewSet):
     queryset = FacturaDetalle.objects.all()
     serializer_class = FacturaDetalleSerializer
@@ -54,4 +62,3 @@ class DescuentoViewSet(viewsets.ModelViewSet):
     queryset = Descuento.objects.all()
     serializer_class = DescuentoSerializer
     permission_classes = [IsAuthenticated]
-
