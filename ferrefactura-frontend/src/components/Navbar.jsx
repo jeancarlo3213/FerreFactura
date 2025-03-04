@@ -1,27 +1,21 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { isAuthenticated, logout } from '../api/auth';
+import '../styles/Navbar.css';
 
 function Navbar() {
   const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
   return (
     <nav>
-      <Link to="/">Inicio</Link>
+      <Link to='/'>Inicio</Link>
       {isAuthenticated() ? (
         <>
-          <Link to="/facturas">Facturas</Link>
-          <button onClick={handleLogout}>Cerrar sesión</button>
+          <Link to='/dashboard'>Dashboard</Link>
+          <button onClick={() => { logout(); navigate('/login'); }}>Cerrar sesión</button>
         </>
       ) : (
-        <Link to="/login">Iniciar sesión</Link>
+        <Link to='/login'>Iniciar sesión</Link>
       )}
     </nav>
   );
 }
-
 export default Navbar;

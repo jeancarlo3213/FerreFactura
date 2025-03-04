@@ -1,49 +1,11 @@
-import { useEffect, useState } from 'react';
-import { getToken, isAuthenticated } from '../api/auth';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+// src/pages/Facturas.jsx
+import React from "react";
 
 function Facturas() {
-  const navigate = useNavigate();
-  const [facturas, setFacturas] = useState([]);
-
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      navigate('/login'); // 🔹 Redirigir a login si no está autenticado
-      return;
-    }
-
-    const token = getToken();
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    axios.get('http://127.0.0.1:8000/api/facturas/', {
-      headers: { Authorization: `Token ${token}` },
-    })
-    .then(response => {
-      setFacturas(response.data);
-    })
-    .catch(error => {
-      console.error('Error al obtener facturas', error);
-    });
-  }, [navigate]);
-
   return (
-    <div>
-      <h2>Facturas</h2>
-      {facturas.length === 0 ? (
-        <p>No hay facturas registradas.</p>
-      ) : (
-        <ul>
-          {facturas.map((factura) => (
-            <li key={factura.id}>
-              Factura #{factura.id} - Cliente: {factura.nombre_cliente}
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
+      <h2 className="text-3xl font-bold mb-6">Gestión de Facturas</h2>
+      <p>Próximamente podrás ver, buscar y gestionar facturas.</p>
     </div>
   );
 }
