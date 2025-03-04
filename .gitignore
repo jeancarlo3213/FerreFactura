@@ -1,16 +1,33 @@
-# Ignorar entorno virtual
+# ⛔ Ignorar entorno virtual de Python
 venv/
 env/
 
-# Ignorar archivos de configuración y bases de datos locales
-*.sqlite3
+# ⛔ Ignorar archivos compilados de Python
 *.pyc
 __pycache__/
 
-# Ignorar configuraciones de VSCode y PyCharm
+# ⛔ Ignorar base de datos SQLite (si usas una localmente)
+*.sqlite3
+
+# ⛔ Ignorar configuración de entornos (credenciales, API keys)
+.env
+
+# ⛔ Ignorar configuraciones de editores de código
 .vscode/
 .idea/
 
-# Archivos de dependencias
-.DS_Store
-.env
+# ⛔ Ignorar dependencias de Node.js
+node_modules/
+
+# ⛔ Ignorar archivos de compilación de frontend
+dist/
+build/
+
+# ⛔ Ignorar logs
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# ⛔ Ignorar caché de Vite y otras herramientas
+.vite/
+.cache/
