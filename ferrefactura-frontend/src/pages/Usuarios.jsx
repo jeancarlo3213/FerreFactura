@@ -1,49 +1,28 @@
 // src/pages/Usuarios.jsx
-import { useEffect, useState } from 'react';
-import { getToken, isAuthenticated } from '../api/auth';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import '../styles/usuarios.css';
+import React from "react";
+import { Link } from "react-router-dom";
+import { FaUserPlus, FaEdit, FaTrash, FaEye } from "react-icons/fa";
 
 function Usuarios() {
-  const navigate = useNavigate();
-  const [usuarios, setUsuarios] = useState([]);
-
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      navigate('/login');
-      return;
-    }
-
-    axios.get('http://127.0.0.1:8000/api/usuarios/', {
-      headers: { Authorization: `Token ${getToken()}` },
-    })
-    .then(response => {
-      setUsuarios(response.data);
-    })
-    .catch(error => {
-      console.error('Error al obtener usuarios', error);
-    });
-  }, [navigate]);
-
   return (
-    <div className="usuarios-container">
-      <h2>Gestión de Usuarios</h2>
-      <div className="usuarios-buttons">
-        <button className="btn-primary" onClick={() => navigate('/usuarios/ver')}>Ver Usuarios</button>
-        <button className="btn-secondary" onClick={() => navigate('/usuarios/nuevo')}>Crear Usuario</button>
-        <button className="btn-warning" onClick={() => navigate('/usuarios/actualizar')}>Actualizar Usuario</button>
-        <button className="btn-danger" onClick={() => navigate('/usuarios/eliminar')}>Eliminar Usuario</button>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-6">
+      <h2 className="text-3xl font-bold mb-6">Gestión de Usuarios</h2>
+      
+      <div className="grid grid-cols-2 gap-6">
+        <Link to="/usuarios/agregar" className="gestion-btn">
+          <FaUserPlus size={24} /> Agregar Usuario
+        </Link>
+        <Link to="/usuarios/actualizar" className="gestion-btn">
+          <FaEdit size={24} /> Actualizar Usuario
+        </Link>
+        <Link to="/usuarios/eliminar" className="gestion-btn">
+          <FaTrash size={24} /> Eliminar Usuario
+        </Link>
+        <Link to="/usuarios/ver" className="gestion-btn">
+          <FaEye size={24} /> Ver Usuarios
+        </Link>
       </div>
-      <ul className="usuarios-list">
-        {usuarios.map((usuario) => (
-          <li key={usuario.id} className="usuario-item">
-            Usuario: {usuario.username} - Rol: {usuario.rol}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
-
 export default Usuarios;

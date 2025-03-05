@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 from rest_framework import viewsets
+from django.db import connection
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -38,10 +39,8 @@ class FacturaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
-        """
-        Sobrescribimos el método `create` para usar la lógica de negocio
-        al momento de registrar una factura.
-        """
+      
+      
         try:
             factura = FacturaLogic.procesar_factura(request.data)
             return Response({"message": "Factura creada con éxito!", "id": factura.id})
@@ -62,3 +61,16 @@ class DescuentoViewSet(viewsets.ModelViewSet):
     queryset = Descuento.objects.all()
     serializer_class = DescuentoSerializer
     permission_classes = [IsAuthenticated]
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def obtener_facturas_completas(request):
+    """
+    Devuelve las facturas desde la vista vw_FacturasCompletas en SQL Server.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT * FROM vw_FacturasCompletas")
+        columnas = [col[0] for col in cursor.description]
+        facturas = [dict(zip(columnas, row)) for row in cursor.fetchall()]
+    
+    return Response(facturas)

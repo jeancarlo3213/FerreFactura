@@ -23,7 +23,7 @@ function Login() {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("token", data.access); // ✅ Guardar token en localStorage
+        localStorage.setItem("token", data.token); // ✅ Guardar token en localStorage
         navigate("/dashboard"); // ✅ Redirigir al dashboard
       } else {
         setError("Usuario o contraseña incorrectos"); // 🔥 Mostrar error si falla
