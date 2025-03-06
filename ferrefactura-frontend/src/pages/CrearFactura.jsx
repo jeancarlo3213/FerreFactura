@@ -9,15 +9,15 @@ function CrearFactura() {
   const [descuentoTotal, setDescuentoTotal] = useState(0);
   const [productos, setProductos] = useState([]);
   const [productosSeleccionados, setProductosSeleccionados] = useState([]);
+  const [totalFactura, setTotalFactura] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const token = localStorage.getItem("token");
 
-  // Obtener lista de productos
   useEffect(() => {
     const fetchProductos = async () => {
       try {
-        if (!token) throw new Error("No hay token de autenticación. Inicia sesión.");
+        if (!token) throw new Error("No hay token de autenticación.");
 
         const response = await fetch("http://127.0.0.1:8000/api/productos/", {
           headers: { Authorization: `Token ${token}` },
@@ -26,7 +26,6 @@ function CrearFactura() {
         if (!response.ok) throw new Error("Error al obtener productos.");
 
         const data = await response.json();
-        console.log("Productos recibidos:", data);
         setProductos(data);
       } catch (err) {
         setError(err.message);
@@ -38,20 +37,43 @@ function CrearFactura() {
     fetchProductos();
   }, [token]);
 
-  // Agregar productos a la factura
+  useEffect(() => {
+    calcularTotal();
+  }, [productosSeleccionados, costoEnvio, descuentoTotal]); // 🔹 Se recalcula el total al cambiar costoEnvio o descuentoTotal
+
   const agregarProducto = (producto) => {
+    if (producto.stock === 0) {
+      alert("Este producto no tiene stock disponible.");
+      return;
+    }
+
     const cantidad = parseInt(prompt(`¿Cuántas unidades de ${producto.nombre} deseas agregar?`), 10);
-    if (!isNaN(cantidad) && cantidad > 0) {
-      setProductosSeleccionados([...productosSeleccionados, { ...producto, cantidad }]);
+    if (!isNaN(cantidad) && cantidad > 0 && cantidad <= producto.stock) {
+      const nuevosProductos = [...productosSeleccionados, { ...producto, cantidad }];
+      setProductosSeleccionados(nuevosProductos);
+    } else {
+      alert("Cantidad inválida o superior al stock disponible.");
     }
   };
 
-  // Eliminar producto de la factura
-  const eliminarProducto = (index) => {
-    setProductosSeleccionados(productosSeleccionados.filter((_, i) => i !== index));
+  const actualizarCantidad = (index, nuevaCantidad) => {
+    if (nuevaCantidad < 1) return;
+    const nuevosProductos = [...productosSeleccionados];
+    nuevosProductos[index].cantidad = nuevaCantidad;
+    setProductosSeleccionados(nuevosProductos);
   };
 
-  // Crear factura
+  const eliminarProducto = (index) => {
+    const nuevosProductos = productosSeleccionados.filter((_, i) => i !== index);
+    setProductosSeleccionados(nuevosProductos);
+  };
+
+  const calcularTotal = () => {
+    const totalProductos = productosSeleccionados.reduce((acc, p) => acc + parseFloat(p.precio) * p.cantidad, 0);
+    const totalFinal = totalProductos + parseFloat(costoEnvio) - parseFloat(descuentoTotal);
+    setTotalFactura(totalFinal);
+  };
+
   const crearFactura = async () => {
     if (productosSeleccionados.length === 0) {
       alert("Debes agregar al menos un producto.");
@@ -59,15 +81,15 @@ function CrearFactura() {
     }
 
     const facturaData = {
-      usuario_id: 1, // Ajustar según el usuario autenticado
+      usuario_id: 1,
       nombre_cliente: nombreCliente,
       fecha_entrega: fechaEntrega,
-      costo_envio: parseFloat(costoEnvio) || 0,
-      descuento_total: parseFloat(descuentoTotal) || 0,
+      costo_envio: parseFloat(costoEnvio),
+      descuento_total: parseFloat(descuentoTotal),
       productos: productosSeleccionados.map((p) => ({
         producto_id: p.id,
         cantidad: p.cantidad,
-        precio_unitario: parseFloat(p.precio) || 0,
+        precio_unitario: parseFloat(p.precio),
       })),
     };
 
@@ -82,8 +104,21 @@ function CrearFactura() {
       });
 
       if (response.ok) {
+        const facturaCreada = await response.json();
         alert("Factura creada con éxito!");
-        navigate("/facturas");
+
+        for (let p of productosSeleccionados) {
+          await fetch(`http://127.0.0.1:8000/api/productos/${p.id}/`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Token ${token}`,
+            },
+            body: JSON.stringify({ stock: p.stock - p.cantidad }),
+          });
+        }
+
+        navigate(`/verfacturadetalle/${facturaCreada.id}`);
       } else {
         const errorData = await response.json();
         alert("Error al crear factura: " + JSON.stringify(errorData));
@@ -103,73 +138,58 @@ function CrearFactura() {
         <p className="text-red-500 text-center">{error}</p>
       ) : (
         <>
-          {/* Datos de la factura */}
-          <div className="mb-4">
-            <label className="block">Nombre del Cliente:</label>
-            <input
-              type="text"
-              className="p-2 bg-gray-800 rounded w-full"
-              value={nombreCliente}
-              onChange={(e) => setNombreCliente(e.target.value)}
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="Nombre del Cliente"
+            className="p-2 bg-gray-800 rounded w-full mb-4"
+            value={nombreCliente}
+            onChange={(e) => setNombreCliente(e.target.value)}
+          />
 
-          <div className="mb-4">
-            <label className="block">Fecha de Entrega:</label>
-            <input
-              type="date"
-              className="p-2 bg-gray-800 rounded w-full"
-              value={fechaEntrega}
-              onChange={(e) => setFechaEntrega(e.target.value)}
-            />
-          </div>
+          <input
+            type="date"
+            className="p-2 bg-gray-800 rounded w-full mb-4"
+            value={fechaEntrega}
+            onChange={(e) => setFechaEntrega(e.target.value)}
+          />
 
-          <div className="mb-4">
-            <label className="block">Costo de Envío:</label>
-            <input
-              type="number"
-              className="p-2 bg-gray-800 rounded w-full"
-              value={costoEnvio}
-              onChange={(e) => setCostoEnvio(e.target.value)}
-            />
-          </div>
-
-          <div className="mb-4">
-            <label className="block">Descuento Total:</label>
-            <input
-              type="number"
-              className="p-2 bg-gray-800 rounded w-full"
-              value={descuentoTotal}
-              onChange={(e) => setDescuentoTotal(e.target.value)}
-            />
-          </div>
-
-          {/* Lista de productos */}
           <h3 className="text-xl font-bold my-4">Seleccionar Productos</h3>
           <ul>
             {productos.map((producto) => (
               <li key={producto.id} className="flex justify-between p-2 border-b border-gray-700">
-                {producto.nombre} - Q{parseFloat(producto.precio).toFixed(2)}
-                <button onClick={() => agregarProducto(producto)} className="ml-2 bg-blue-500 p-1 rounded">+</button>
+                {producto.nombre} - Q{parseFloat(producto.precio).toFixed(2)} (Stock: {producto.stock})
+                <button onClick={() => agregarProducto(producto)} className="ml-2 bg-blue-500 p-1 rounded" disabled={producto.stock === 0}>
+                  +
+                </button>
               </li>
             ))}
           </ul>
 
-          {/* Productos seleccionados */}
           <h3 className="text-xl font-bold my-4">Productos Seleccionados</h3>
           <ul>
             {productosSeleccionados.map((p, index) => (
-              <li key={index} className="flex justify-between">
-                {p.nombre} - {p.cantidad} unidades - Q{(parseFloat(p.precio) * p.cantidad).toFixed(2)}
-                <button onClick={() => eliminarProducto(index)} className="ml-2 bg-red-500 p-1 rounded">X</button>
+              <li key={index} className="flex justify-between items-center">
+                {p.nombre} - Q{parseFloat(p.precio).toFixed(2)} x {p.cantidad} = <strong>Q{(parseFloat(p.precio) * p.cantidad).toFixed(2)}</strong>
+                <input
+                  type="number"
+                  className="p-1 w-12 bg-gray-800 rounded mx-2"
+                  value={p.cantidad}
+                  onChange={(e) => actualizarCantidad(index, parseInt(e.target.value))}
+                />
+                <button onClick={() => eliminarProducto(index)} className="bg-red-500 p-1 rounded">X</button>
               </li>
             ))}
           </ul>
 
-          {/* Botón para confirmar factura */}
-          <button onClick={crearFactura} className="bg-green-500 p-3 rounded mt-4">
-            Confirmar Factura
-          </button>
+          <h3 className="text-lg font-bold mt-4">Costo de Envío</h3>
+          <input type="number" className="p-2 bg-gray-800 rounded w-full mb-2" value={costoEnvio} onChange={(e) => setCostoEnvio(e.target.value)} />
+
+          <h3 className="text-lg font-bold">Descuento Total</h3>
+          <input type="number" className="p-2 bg-gray-800 rounded w-full mb-4" value={descuentoTotal} onChange={(e) => setDescuentoTotal(e.target.value)} />
+
+          <p className="text-lg font-bold my-4">Total: Q{totalFactura.toFixed(2)}</p>
+
+          <button onClick={crearFactura} className="bg-green-500 p-2 rounded">Confirmar Factura</button>
         </>
       )}
     </div>

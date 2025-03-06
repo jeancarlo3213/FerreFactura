@@ -33,15 +33,13 @@ class ProductoViewSet(viewsets.ModelViewSet):
     serializer_class = ProductoSerializer
     permission_classes = [IsAuthenticated]
 
+
 class FacturaViewSet(viewsets.ModelViewSet):
     queryset = Factura.objects.all()
     serializer_class = FacturaSerializer
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
-        """
-        Crear una factura con detalles de productos en una sola transacción.
-        """
         try:
             with transaction.atomic():
                 factura_data = {
@@ -53,19 +51,21 @@ class FacturaViewSet(viewsets.ModelViewSet):
                 }
                 factura = Factura.objects.create(**factura_data)
 
-                # Procesar los productos de la factura
                 for detalle in request.data.get("productos", []):
                     producto = Producto.objects.get(id=detalle["producto_id"])
+
                     FacturaDetalle.objects.create(
                         factura=factura,
                         producto=producto,
                         cantidad=detalle["cantidad"],
                         precio_unitario=detalle["precio_unitario"],
+                        tipo_venta=detalle.get("tipo_venta", "Unidad")  # 🔹 Guardar el tipo de venta correctamente
                     )
 
                 return Response({"message": "Factura creada con éxito!", "id": factura.id})
         except Exception as e:
             return Response({"error": str(e)}, status=400)
+
 
 class FacturaDetalleViewSet(viewsets.ModelViewSet):
     queryset = FacturaDetalle.objects.all()

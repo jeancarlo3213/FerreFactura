@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Facturas from "./pages/Facturas";
 import Usuarios from "./pages/Usuarios";
 import Productos from "./pages/Productos";
+import VerFacturaDetalle from "./pages/VerFacturaDetalle";
 import CrearFactura from "./pages/CrearFactura"; // Asegurar importación correcta
 import "./styles/App.css";
 import { isAuthenticated } from "./api/auth";
@@ -21,6 +22,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/verfactura/:id" element={<VerFacturaDetalle />} />
         <Route path="/dashboard" element={<PrivateRoute element={<Dashboard />} />} />
         <Route path="/facturas" element={<PrivateRoute element={<Facturas />} />} />
         <Route path="/usuarios" element={<PrivateRoute element={<Usuarios />} />} />

@@ -23,12 +23,13 @@ class Usuario(models.Model):
     rol = models.CharField(max_length=50, choices=[('Cajero', 'Cajero'), ('Administrador', 'Administrador')], null=True, blank=True)
     habilitado = models.BooleanField(default=True)
     objects = models.Manager()
+    
     class Meta:
         db_table = 'Usuarios'
     
-
     def __str__(self):
         return str(self.nombre)
+
 
 # Modelo para la tabla Productos
 class Producto(models.Model):
@@ -38,10 +39,13 @@ class Producto(models.Model):
     stock = models.IntegerField(default=0, null=True, blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     objects = models.Manager()
+    
     class Meta:
         db_table = 'Productos'
+
     def __str__(self):
         return str(self.nombre)
+
 
 # Modelo para la tabla Facturas
 class Factura(models.Model):
@@ -59,13 +63,22 @@ class Factura(models.Model):
     def __str__(self):
         return f'Factura {self.pk} - {str(self.nombre_cliente)}'
 
-# Modelo para la tabla Facturas_Detalle
+
+# Modelo para la tabla Facturas_Detalle con tipo de venta
 class FacturaDetalle(models.Model):
     factura = models.ForeignKey(Factura, on_delete=models.CASCADE)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
-    objects = models.Manager()  
+
+    # 🔹 Nuevo campo: Tipo de venta (Unidad o Quintal)
+    tipo_venta = models.CharField(
+        max_length=20,
+        choices=[('Unidad', 'Unidad'), ('Quintal', 'Quintal')],
+        default='Unidad'
+    )
+
+    objects = models.Manager()
 
     class Meta:
         db_table = 'Facturas_Detalle'
@@ -75,7 +88,8 @@ class FacturaDetalle(models.Model):
         return self.cantidad * self.precio_unitario
 
     def __str__(self):
-        return f'{str(self.producto)} - {self.cantidad} unidades'
+        return f'{self.producto} - {self.cantidad} {self.tipo_venta}'
+
 
 # Modelo para la tabla Precios_Especiales
 class PrecioEspecial(models.Model):
@@ -83,19 +97,26 @@ class PrecioEspecial(models.Model):
     tipo_cliente = models.CharField(max_length=50)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     objects = models.Manager()
+
     class Meta:
         db_table = 'Precios_Especiales'
 
     def __str__(self):
         return f'Precio especial para {self.tipo_cliente} - {str(self.producto)}'
 
+
 # Modelo para la tabla Descuentos
 class Descuento(models.Model):
     factura = models.ForeignKey(Factura, on_delete=models.CASCADE)
-    tipo = models.CharField(max_length=50, choices=[('Total', 'Total'), ('Por unidad', 'Por unidad')], null=True, blank=True)
+    tipo = models.CharField(
+        max_length=50, 
+        choices=[('Total', 'Total'), ('Por unidad', 'Por unidad')], 
+        null=True, blank=True
+    )
     cantidad = models.DecimalField(max_digits=10, decimal_places=2)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, null=True, blank=True)
     objects = models.Manager()
+
     class Meta:
         db_table = 'Descuentos'
 
