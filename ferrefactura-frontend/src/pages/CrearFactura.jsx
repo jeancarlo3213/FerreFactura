@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 function CrearFactura() {
@@ -12,6 +12,7 @@ function CrearFactura() {
   const [totalFactura, setTotalFactura] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [botonDeshabilitado, setBotonDeshabilitado] = useState(false); // 🔹 Evita múltiples clics en "Confirmar Factura"
   const token = localStorage.getItem("token");
 
   useEffect(() => {
@@ -37,9 +38,19 @@ function CrearFactura() {
     fetchProductos();
   }, [token]);
 
+  // 🔹 Usa `useCallback` para evitar problemas con `useEffect`
+  const calcularTotal = useCallback(() => {
+    const totalProductos = productosSeleccionados.reduce(
+      (acc, p) => acc + parseFloat(p.precio) * p.cantidad, 0
+    );
+    const totalFinal = totalProductos + (parseFloat(costoEnvio) || 0) - (parseFloat(descuentoTotal) || 0);
+    setTotalFactura(totalFinal);
+  }, [productosSeleccionados, costoEnvio, descuentoTotal]);
+
+  // 🔹 `useEffect` ahora incluye `calcularTotal`
   useEffect(() => {
     calcularTotal();
-  }, [productosSeleccionados, costoEnvio, descuentoTotal]); // 🔹 Se recalcula el total al cambiar costoEnvio o descuentoTotal
+  }, [productosSeleccionados, costoEnvio, descuentoTotal, calcularTotal]);
 
   const agregarProducto = (producto) => {
     if (producto.stock === 0) {
@@ -49,8 +60,15 @@ function CrearFactura() {
 
     const cantidad = parseInt(prompt(`¿Cuántas unidades de ${producto.nombre} deseas agregar?`), 10);
     if (!isNaN(cantidad) && cantidad > 0 && cantidad <= producto.stock) {
-      const nuevosProductos = [...productosSeleccionados, { ...producto, cantidad }];
-      setProductosSeleccionados(nuevosProductos);
+      const tipoVenta = producto.nombre.toLowerCase().includes("varilla") 
+        ? prompt("¿Tipo de venta? (Unidad/Quintal)").toLowerCase() === "quintal" 
+          ? "Quintal" 
+          : "Unidad"
+        : "Unidad";
+
+      const precioUnitario = tipoVenta === "Quintal" ? producto.precioQuintal : producto.precio;
+
+      setProductosSeleccionados([...productosSeleccionados, { ...producto, cantidad, tipoVenta, precio: precioUnitario }]);
     } else {
       alert("Cantidad inválida o superior al stock disponible.");
     }
@@ -68,28 +86,25 @@ function CrearFactura() {
     setProductosSeleccionados(nuevosProductos);
   };
 
-  const calcularTotal = () => {
-    const totalProductos = productosSeleccionados.reduce((acc, p) => acc + parseFloat(p.precio) * p.cantidad, 0);
-    const totalFinal = totalProductos + parseFloat(costoEnvio) - parseFloat(descuentoTotal);
-    setTotalFactura(totalFinal);
-  };
-
   const crearFactura = async () => {
     if (productosSeleccionados.length === 0) {
       alert("Debes agregar al menos un producto.");
       return;
     }
 
+    setBotonDeshabilitado(true);
+
     const facturaData = {
       usuario_id: 1,
       nombre_cliente: nombreCliente,
       fecha_entrega: fechaEntrega,
-      costo_envio: parseFloat(costoEnvio),
-      descuento_total: parseFloat(descuentoTotal),
+      costo_envio: parseFloat(costoEnvio) || 0,
+      descuento_total: parseFloat(descuentoTotal) || 0,
       productos: productosSeleccionados.map((p) => ({
         producto_id: p.id,
         cantidad: p.cantidad,
         precio_unitario: parseFloat(p.precio),
+        tipo_venta: p.tipoVenta,
       })),
     };
 
@@ -122,9 +137,11 @@ function CrearFactura() {
       } else {
         const errorData = await response.json();
         alert("Error al crear factura: " + JSON.stringify(errorData));
+        setBotonDeshabilitado(false);
       }
     } catch {
       alert("Error en la conexión con el servidor.");
+      setBotonDeshabilitado(false);
     }
   };
 
@@ -169,7 +186,7 @@ function CrearFactura() {
           <ul>
             {productosSeleccionados.map((p, index) => (
               <li key={index} className="flex justify-between items-center">
-                {p.nombre} - Q{parseFloat(p.precio).toFixed(2)} x {p.cantidad} = <strong>Q{(parseFloat(p.precio) * p.cantidad).toFixed(2)}</strong>
+                {p.nombre} - Q{parseFloat(p.precio).toFixed(2)} x {p.cantidad} ({p.tipoVenta}) = <strong>Q{(parseFloat(p.precio) * p.cantidad).toFixed(2)}</strong>
                 <input
                   type="number"
                   className="p-1 w-12 bg-gray-800 rounded mx-2"
@@ -189,7 +206,7 @@ function CrearFactura() {
 
           <p className="text-lg font-bold my-4">Total: Q{totalFactura.toFixed(2)}</p>
 
-          <button onClick={crearFactura} className="bg-green-500 p-2 rounded">Confirmar Factura</button>
+          <button onClick={crearFactura} className="bg-green-500 p-2 rounded" disabled={botonDeshabilitado}>Confirmar Factura</button>
         </>
       )}
     </div>
