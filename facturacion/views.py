@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
+from django.db import transaction, connection
 from rest_framework import viewsets
-from django.db import connection
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -39,12 +39,32 @@ class FacturaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
-      
-      
+        """
+        Crear una factura con detalles de productos en una sola transacción.
+        """
         try:
-            factura = FacturaLogic.procesar_factura(request.data)
-            return Response({"message": "Factura creada con éxito!", "id": factura.id})
-        except ValueError as e:
+            with transaction.atomic():
+                factura_data = {
+                    "usuario_id": request.data["usuario_id"],
+                    "nombre_cliente": request.data["nombre_cliente"],
+                    "fecha_entrega": request.data["fecha_entrega"],
+                    "costo_envio": request.data.get("costo_envio", 0),
+                    "descuento_total": request.data.get("descuento_total", 0),
+                }
+                factura = Factura.objects.create(**factura_data)
+
+                # Procesar los productos de la factura
+                for detalle in request.data.get("productos", []):
+                    producto = Producto.objects.get(id=detalle["producto_id"])
+                    FacturaDetalle.objects.create(
+                        factura=factura,
+                        producto=producto,
+                        cantidad=detalle["cantidad"],
+                        precio_unitario=detalle["precio_unitario"],
+                    )
+
+                return Response({"message": "Factura creada con éxito!", "id": factura.id})
+        except Exception as e:
             return Response({"error": str(e)}, status=400)
 
 class FacturaDetalleViewSet(viewsets.ModelViewSet):

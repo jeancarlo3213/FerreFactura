@@ -9,7 +9,7 @@ function Home() {
       <h1 className="text-4xl font-bold">Bienvenido a <span className="text-blue-400">FerreFactura</span></h1>
       <p className="text-lg mt-2">Gestiona tus facturas de forma sencilla.</p>
 
-      {/* ✅ Botón corregido para redirigir a /login */}
+   
       <Link to="/login" className="mt-6 px-6 py-3 bg-blue-500 rounded-lg text-white font-semibold flex items-center gap-2 hover:bg-blue-600 transition">
         <FaSignInAlt size={20} /> Iniciar Sesión
       </Link>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, Trash2, Eye } from "lucide-react"; // ✅ Iconos de Lucide
-import { format } from "date-fns"; // ✅ Para formatear fechas
+import { Plus, Search, Trash2, Eye } from "lucide-react";
+import { format } from "date-fns";
 
 function Facturas() {
   const [facturas, setFacturas] = useState([]);
@@ -11,6 +11,10 @@ function Facturas() {
     const fetchFacturas = async () => {
       try {
         const token = localStorage.getItem("token");
+        if (!token) {
+          throw new Error("No hay token de autenticación.");
+        }
+
         const response = await fetch("http://127.0.0.1:8000/api/facturas-completas/", {
           method: "GET",
           headers: {
@@ -37,26 +41,14 @@ function Facturas() {
     <div className="min-h-screen bg-gray-900 text-white p-6">
       <h2 className="text-3xl font-bold text-center mb-4">Gestión de Facturas</h2>
 
-      {/* ⚠️ Error al obtener facturas */}
       {error && <p className="text-red-500 text-center mb-4">{error}</p>}
 
-      {/* 🟢 Botones de Acciones */}
       <div className="flex flex-wrap gap-4 justify-center mb-6">
-        <Link to="/crear-factura" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center gap-2">
+        <Link to="/crearfactura" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center gap-2">
           <Plus size={20} /> Crear Factura
         </Link>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2">
-          <Search size={20} /> Buscar Factura
-        </button>
-        <button className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded flex items-center gap-2">
-          <Eye size={20} /> Ver Facturas
-        </button>
-        <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded flex items-center gap-2">
-          <Trash2 size={20} /> Eliminar Factura
-        </button>
       </div>
 
-      {/* 📜 Tabla de Facturas */}
       <div className="overflow-x-auto">
         <table className="w-full text-left border border-gray-700 rounded-lg overflow-hidden">
           <thead className="bg-gray-800 text-white uppercase">

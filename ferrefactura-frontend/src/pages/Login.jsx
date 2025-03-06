@@ -1,4 +1,3 @@
-// src/pages/Login.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -6,7 +5,7 @@ function Login() {
   const navigate = useNavigate();
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(""); // ✅ Estado para errores
+  const [error, setError] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -23,13 +22,13 @@ function Login() {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("token", data.token); // ✅ Guardar token en localStorage
-        navigate("/dashboard"); // ✅ Redirigir al dashboard
+        localStorage.setItem("token", data.token);
+        navigate("/dashboard");
       } else {
-        setError("Usuario o contraseña incorrectos"); // 🔥 Mostrar error si falla
+        setError("Usuario o contraseña incorrectos");
       }
     } catch {
-      setError("Error de conexión con el servidor");
+      setError("Error de conexión con el servidor.");
     }
   };
 
@@ -51,7 +50,7 @@ function Login() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        {error && <p className="text-red-500 text-sm mb-2">{error}</p>} {/* ✅ Mensaje de error */}
+        {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
         <button type="submit" className="w-full bg-blue-500 p-2 rounded hover:bg-blue-600">
           Entrar
         </button>
