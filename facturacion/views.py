@@ -7,7 +7,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Usuario, Producto, Factura, FacturaDetalle, PrecioEspecial, Descuento
 from .serializers import UsuarioSerializer, ProductoSerializer, FacturaSerializer, FacturaDetalleSerializer, PrecioEspecialSerializer, DescuentoSerializer
-from .business.factura_logic import FacturaLogic
 
 # Página de bienvenida
 def api_root(request):
@@ -33,7 +32,6 @@ class ProductoViewSet(viewsets.ModelViewSet):
     serializer_class = ProductoSerializer
     permission_classes = [IsAuthenticated]
 
-
 class FacturaViewSet(viewsets.ModelViewSet):
     queryset = Factura.objects.all()
     serializer_class = FacturaSerializer
@@ -44,8 +42,8 @@ class FacturaViewSet(viewsets.ModelViewSet):
             with transaction.atomic():
                 factura_data = {
                     "usuario_id": request.data["usuario_id"],
-                    "nombre_cliente": request.data["nombre_cliente"],
-                    "fecha_entrega": request.data["fecha_entrega"],
+                    "nombre_cliente": request.data.get("nombre_cliente", ""),
+                    "fecha_entrega": request.data.get("fecha_entrega"),
                     "costo_envio": request.data.get("costo_envio", 0),
                     "descuento_total": request.data.get("descuento_total", 0),
                 }
@@ -53,19 +51,27 @@ class FacturaViewSet(viewsets.ModelViewSet):
 
                 for detalle in request.data.get("productos", []):
                     producto = Producto.objects.get(id=detalle["producto_id"])
+                    tipo_venta = detalle.get("tipo_venta", "Unidad")
+
+                    # Determinar precio según el tipo de venta
+                    if tipo_venta == "Unidad":
+                        precio_unitario = producto.precio_unidad
+                    elif tipo_venta == "Quintal":
+                        precio_unitario = producto.precio_quintal
+                    else:
+                        return Response({"error": "Tipo de venta inválido"}, status=400)
 
                     FacturaDetalle.objects.create(
                         factura=factura,
                         producto=producto,
                         cantidad=detalle["cantidad"],
-                        precio_unitario=detalle["precio_unitario"],
-                        tipo_venta=detalle.get("tipo_venta", "Unidad")  # 🔹 Guardar el tipo de venta correctamente
+                        precio_unitario=precio_unitario,
+                        tipo_venta=tipo_venta
                     )
 
                 return Response({"message": "Factura creada con éxito!", "id": factura.id})
         except Exception as e:
             return Response({"error": str(e)}, status=400)
-
 
 class FacturaDetalleViewSet(viewsets.ModelViewSet):
     queryset = FacturaDetalle.objects.all()

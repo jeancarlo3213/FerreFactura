@@ -6,7 +6,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         model = Usuario
         fields = '__all__'
     
-    def validate_username(self, value):
+    def validate_usuario(self, value):
         if not value.strip():
             raise serializers.ValidationError("El nombre de usuario no puede estar vacío.")
         return value
@@ -15,10 +15,20 @@ class ProductoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Producto
         fields = '__all__'
-    
-    def validate_precio(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("El precio debe ser mayor a 0.")
+
+    def validate_precio_quintal(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("El precio por quintal debe ser mayor a 0.")
+        return value
+
+    def validate_precio_unidad(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("El precio por unidad debe ser mayor a 0.")
+        return value
+
+    def validate_unidades_por_quintal(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("Las unidades por quintal deben ser mayor a 0.")
         return value
 
 class FacturaSerializer(serializers.ModelSerializer):
@@ -26,9 +36,9 @@ class FacturaSerializer(serializers.ModelSerializer):
         model = Factura
         fields = '__all__'
     
-    def validate_total(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("El total de la factura debe ser mayor a 0.")
+    def validate_descuento_total(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("El descuento total no puede ser negativo.")
         return value
 
 class FacturaDetalleSerializer(serializers.ModelSerializer):
@@ -56,7 +66,7 @@ class DescuentoSerializer(serializers.ModelSerializer):
         model = Descuento
         fields = '__all__'
     
-    def validate_descuento(self, value):
+    def validate_cantidad(self, value):
         if value < 0:
             raise serializers.ValidationError("El descuento no puede ser negativo.")
         return value
