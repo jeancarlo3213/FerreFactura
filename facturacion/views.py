@@ -5,6 +5,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
 from .models import Usuario, Producto, Factura, FacturaDetalle, PrecioEspecial, Descuento
 from .serializers import UsuarioSerializer, ProductoSerializer, FacturaSerializer, FacturaDetalleSerializer, PrecioEspecialSerializer, DescuentoSerializer
 
@@ -42,31 +43,21 @@ class FacturaViewSet(viewsets.ModelViewSet):
             with transaction.atomic():
                 factura_data = {
                     "usuario_id": request.data["usuario_id"],
-                    "nombre_cliente": request.data.get("nombre_cliente", ""),
-                    "fecha_entrega": request.data.get("fecha_entrega"),
+                    "nombre_cliente": request.data["nombre_cliente"],
+                    "fecha_entrega": request.data["fecha_entrega"],
                     "costo_envio": request.data.get("costo_envio", 0),
                     "descuento_total": request.data.get("descuento_total", 0),
                 }
                 factura = Factura.objects.create(**factura_data)
 
                 for detalle in request.data.get("productos", []):
-                    producto = Producto.objects.get(id=detalle["producto_id"])
-                    tipo_venta = detalle.get("tipo_venta", "Unidad")
-
-                    # Determinar precio según el tipo de venta
-                    if tipo_venta == "Unidad":
-                        precio_unitario = producto.precio_unidad
-                    elif tipo_venta == "Quintal":
-                        precio_unitario = producto.precio_quintal
-                    else:
-                        return Response({"error": "Tipo de venta inválido"}, status=400)
-
+                    producto = get_object_or_404(Producto, id=detalle["producto_id"])  # Mejor manejo de errores
                     FacturaDetalle.objects.create(
                         factura=factura,
                         producto=producto,
                         cantidad=detalle["cantidad"],
-                        precio_unitario=precio_unitario,
-                        tipo_venta=tipo_venta
+                        precio_unitario=detalle["precio_unitario"],
+                        tipo_venta=detalle.get("tipo_venta", "Unidad")
                     )
 
                 return Response({"message": "Factura creada con éxito!", "id": factura.id})
@@ -88,12 +79,10 @@ class DescuentoViewSet(viewsets.ModelViewSet):
     serializer_class = DescuentoSerializer
     permission_classes = [IsAuthenticated]
 
+# 🔹 Vista para obtener facturas completas
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def obtener_facturas_completas(request):
-    """
-    Devuelve las facturas desde la vista vw_FacturasCompletas en SQL Server.
-    """
+def obtener_facturas_completas(_request):
     with connection.cursor() as cursor:
         cursor.execute("SELECT * FROM vw_FacturasCompletas")
         columnas = [col[0] for col in cursor.description]

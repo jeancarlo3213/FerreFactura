@@ -12,6 +12,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         return value
 
 class ProductoSerializer(serializers.ModelSerializer):
+    precio = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
     class Meta:
         model = Producto
         fields = '__all__'

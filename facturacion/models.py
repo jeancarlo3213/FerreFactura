@@ -34,6 +34,7 @@ class Usuario(models.Model):
 # Modelo para la tabla Productos
 class Producto(models.Model):
     nombre = models.CharField(max_length=255, unique=True)
+    precio = models.DecimalField(max_digits=10, decimal_places=2, null=False, blank=False, default=0)
     precio_quintal = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     precio_unidad = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     unidades_por_quintal = models.IntegerField(null=True, blank=True)
