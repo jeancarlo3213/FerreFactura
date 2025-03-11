@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+// 🔹 Componentes de Ant Design
+import { Input, Button, message } from "antd";
+// 🔹 Íconos de react-icons
+import { FaPlus, FaCheckCircle, FaSearch } from "react-icons/fa";
 
 function CrearFactura() {
   const [productos, setProductos] = useState([]);
@@ -11,8 +16,15 @@ function CrearFactura() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Estado para la búsqueda
+  const [busqueda, setBusqueda] = useState("");
+
+  // Para redirigir tras crear la factura
+  const navigate = useNavigate();
+
   const token = localStorage.getItem("token");
 
+  // 🔸 Cargar productos desde el backend
   useEffect(() => {
     const fetchProductos = async () => {
       try {
@@ -39,7 +51,7 @@ function CrearFactura() {
               : null,
             stockQuintales,
             unidadesRestantes,
-            descuentoPorUnidad: 0, // Por si acaso queremos usarlo
+            descuentoPorUnidad: 0,
           };
         });
 
@@ -53,6 +65,7 @@ function CrearFactura() {
     fetchProductos();
   }, [token]);
 
+  // 🔸 Calcular total de la factura
   const calcularTotal = useCallback(() => {
     const totalProductos = productosSeleccionados.reduce((acc, p) => {
       const subtotal =
@@ -63,9 +76,7 @@ function CrearFactura() {
     }, 0);
 
     setTotalFactura(
-      totalProductos +
-        (parseFloat(costoEnvio) || 0) -
-        (parseFloat(descuentoTotal) || 0)
+      totalProductos + (parseFloat(costoEnvio) || 0) - (parseFloat(descuentoTotal) || 0)
     );
   }, [productosSeleccionados, costoEnvio, descuentoTotal]);
 
@@ -73,21 +84,19 @@ function CrearFactura() {
     calcularTotal();
   }, [productosSeleccionados, costoEnvio, descuentoTotal, calcularTotal]);
 
-  // 🔸 Modificar cantidad de quintales o unidades
+  // 🔸 Modificar cantidad/quintal
   const modificarCantidad = (id, campo, valor) => {
     setProductosSeleccionados((prev) =>
       prev.map((p) => {
         if (p.id === id) {
           const nuevoValor = parseFloat(valor) || 0;
           if (nuevoValor < 0) return p;
-
           if (campo === "cantidadUnidades" && nuevoValor > p.unidadesRestantes) {
             return p;
           }
           if (campo === "cantidadQuintales" && nuevoValor > p.stockQuintales) {
             return p;
           }
-
           return { ...p, [campo]: nuevoValor };
         }
         return p;
@@ -108,9 +117,64 @@ function CrearFactura() {
     calcularTotal();
   };
 
-  // 🔸 Agregar producto a la lista de seleccionados
+  // 🔸 Confirmar Factura (Crear + actualizar stock + redirigir)
+  const confirmarFactura = async () => {
+    const payload = {
+      nombre_cliente: nombreCliente,
+      fecha_entrega: fechaEntrega,
+      costo_envio: costoEnvio,
+      descuento_total: descuentoTotal,
+      usuario_id: 1, // Ajusta si tu backend lo requiere
+      productos: productosSeleccionados.map((prod) => ({
+        producto_id: prod.id,
+        cantidad: prod.cantidadUnidades,
+        precio_unitario: prod.precio,
+      })),
+    };
+
+    try {
+      // 1) Crear la Factura
+      const response = await fetch("http://127.0.0.1:8000/api/facturas/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al crear la factura");
+      }
+      const data = await response.json();
+
+      // 2) Actualizar stock de cada producto
+      // (ejemplo simple restando la cantidadUnidades del p.stock)
+      for (const prodSel of productosSeleccionados) {
+        const nuevoStock = prodSel.stock - prodSel.cantidadUnidades;
+        // PATCH al endpoint de producto
+        await fetch(`http://127.0.0.1:8000/api/productos/${prodSel.id}/`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Token ${token}`,
+          },
+          body: JSON.stringify({ stock: nuevoStock }),
+        });
+      }
+
+      // 3) Mensaje bonito con Ant Design
+      message.success(`¡Factura creada con éxito! ID: ${data.id}`, 3);
+
+      // 4) Redirigir
+      navigate(`/verfactura/${data.id}`);
+    } catch (error) {
+      message.error(`Error: ${error.message}`);
+    }
+  };
+
+  // 🔸 Agregar producto a la lista
   const agregarProducto = (producto) => {
-    // Asegurar que no se agregue dos veces
     setProductosSeleccionados((prev) => {
       const existe = prev.find((p) => p.id === producto.id);
       if (existe) {
@@ -147,42 +211,41 @@ function CrearFactura() {
       {/* Campos para Cliente, Fecha, Costo de Envío, etc. */}
       <div className="space-y-3">
         <label className="block text-sm text-gray-300">Nombre del Cliente</label>
-        <input
-          type="text"
+        <Input
           value={nombreCliente}
           onChange={(e) => setNombreCliente(e.target.value)}
-          className="w-full p-2 border border-gray-600 rounded bg-gray-800 text-white"
+          className="border border-gray-600 !bg-gray-800 !text-white"
           placeholder="Ej: Juan Pérez"
         />
 
         <label className="block text-sm text-gray-300">Fecha de Entrega</label>
-        <input
+        <Input
           type="date"
           value={fechaEntrega}
           onChange={(e) => setFechaEntrega(e.target.value)}
-          className="w-full p-2 border border-gray-600 rounded bg-gray-800 text-white"
+          className="border border-gray-600 !bg-gray-800 !text-white"
         />
 
         <label className="block text-sm text-gray-300">Costo de Envío</label>
-        <input
+        <Input
           type="number"
           value={costoEnvio}
           onChange={(e) => setCostoEnvio(Number(e.target.value))}
-          className="w-full p-2 border border-gray-600 rounded bg-gray-800 text-white"
+          className="border border-gray-600 !bg-gray-800 !text-white"
           placeholder="Ej: 50"
         />
 
         <label className="block text-sm text-gray-300">Descuento Total</label>
-        <input
+        <Input
           type="number"
           value={descuentoTotal}
           onChange={(e) => setDescuentoTotal(Number(e.target.value))}
-          className="w-full p-2 border border-gray-600 rounded bg-gray-800 text-white"
+          className="border border-gray-600 !bg-gray-800 !text-white"
           placeholder="Ej: 10"
         />
       </div>
 
-      {/* Sección de productos seleccionados */}
+      {/* Lista de Productos Seleccionados */}
       <h2 className="text-xl font-semibold mt-6">
         Lista de Productos Seleccionados
       </h2>
@@ -193,55 +256,51 @@ function CrearFactura() {
         >
           <span>{p.nombre}</span>
 
-          {/* Cantidad por Quintal */}
           {p.precio_quintal !== null && (
             <div className="text-center">
               <span className="block text-sm text-gray-400">
                 Cantidad por Quintal
               </span>
-              <input
+              <Input
                 type="number"
                 value={p.cantidadQuintales}
                 onChange={(e) =>
                   modificarCantidad(p.id, "cantidadQuintales", e.target.value)
                 }
-                className="w-16 p-1 border border-gray-600 rounded bg-gray-800 text-white"
+                className="!w-16 !border-gray-600 !bg-gray-800 !text-white text-center"
                 placeholder="0"
               />
             </div>
           )}
 
-          {/* Cantidad por Unidad */}
           <div className="text-center">
             <span className="block text-sm text-gray-400">
               Cantidad por Unidad
             </span>
-            <input
+            <Input
               type="number"
               value={p.cantidadUnidades}
               onChange={(e) =>
                 modificarCantidad(p.id, "cantidadUnidades", e.target.value)
               }
-              className="w-16 p-1 border border-gray-600 rounded bg-gray-800 text-white"
+              className="!w-16 !border-gray-600 !bg-gray-800 !text-white text-center"
               placeholder="0"
             />
           </div>
 
-          {/* Descuento por Unidad */}
           <div className="text-center">
             <span className="block text-sm text-gray-400">
               Descuento por Unidad
             </span>
-            <input
+            <Input
               type="number"
               value={p.descuentoPorUnidad}
               onChange={(e) => modificarDescuento(p.id, e.target.value)}
-              className="w-16 p-1 border border-gray-600 rounded bg-gray-800 text-white"
+              className="!w-16 !border-gray-600 !bg-gray-800 !text-white text-center"
               placeholder="0"
             />
           </div>
 
-          {/* Total por producto */}
           <span className="font-bold">
             Total: Q
             {(
@@ -253,52 +312,81 @@ function CrearFactura() {
         </div>
       ))}
 
-      {/* Lista de Productos Disponibles */}
-      <h2 className="text-xl font-semibold mt-6">
+      {/* 🔎 Input de búsqueda de productos */}
+      <div className="mt-6">
+        <label className="block text-sm text-gray-300">
+          <FaSearch className="inline mr-2" />
+          Buscar producto (por nombre o ID)
+        </label>
+        <Input
+          type="text"
+          className="border border-gray-600 !bg-gray-800 !text-white"
+          placeholder="Ej: Pintura o 1"
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
+      </div>
+
+      {/* Lista de Productos Disponibles (filtrados en línea) */}
+      <h2 className="text-xl font-semibold mt-4">
         Lista de Productos Disponibles
       </h2>
-      {productos.map((producto) => (
-        <div
-          key={producto.id}
-          className="flex justify-between items-center p-3 border-b border-gray-700"
-        >
-          <span>
-            {producto.nombre} - Q
-            {producto.precio.toFixed(2)}
-          </span>
-          {producto.precio_quintal && (
-            <span>
-              Q
-              {producto.precio_quintal.toFixed(2)} por quintal
-            </span>
-          )}
-          <span>
-            Stock:{" "}
-            {producto.stockQuintales
-              ? `${producto.stockQuintales} quintales, ${producto.unidadesRestantes} unidades`
-              : `${producto.unidadesRestantes} unidades`}
-          </span>
-          <button
-            onClick={() => {
-              agregarProducto(producto); // Usar la función aquí
-            }}
-            className="bg-blue-500 text-white px-2 py-1 rounded"
+      {productos
+        .filter((prod) => {
+          if (!busqueda || !busqueda.trim()) return true;
+          const texto = busqueda.toLowerCase();
+          return (
+            prod.nombre.toLowerCase().includes(texto) ||
+            String(prod.id).includes(texto)
+          );
+        })
+        .map((producto) => (
+          <div
+            key={producto.id}
+            className="flex justify-between items-center p-3 border-b border-gray-700"
           >
-            +
-          </button>
-        </div>
-      ))}
+            <span>
+              {producto.nombre} - Q
+              {producto.precio.toFixed(2)}
+            </span>
+            {producto.precio_quintal && (
+              <span>
+                Q
+                {producto.precio_quintal.toFixed(2)} por quintal
+              </span>
+            )}
+            <span>
+              Stock:{" "}
+              {producto.stockQuintales
+                ? `${producto.stockQuintales} quintales, ${producto.unidadesRestantes} unidades`
+                : `${producto.unidadesRestantes} unidades`}
+            </span>
+            <Button
+              type="default"
+              icon={<FaPlus />}
+              onClick={() => {
+                agregarProducto(producto);
+              }}
+              className="bg-blue-500 text-white border-none hover:bg-blue-600"
+            >
+              Agregar
+            </Button>
+          </div>
+        ))}
 
       {/* Total Final */}
       <h2 className="text-xl font-semibold mt-6">
         Total: Q{totalFactura.toFixed(2)}
       </h2>
-      <button
-        className="w-full bg-green-500 text-white p-2 rounded mt-4"
+
+      <Button
+        type="primary"
+        icon={<FaCheckCircle />}
+        className="w-full !bg-green-500 !border-none hover:!bg-green-600"
         disabled={productosSeleccionados.length === 0}
+        onClick={confirmarFactura}
       >
         Confirmar Factura
-      </button>
+      </Button>
     </div>
   );
 }

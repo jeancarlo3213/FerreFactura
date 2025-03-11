@@ -10,6 +10,9 @@ import VerFacturaDetalle from "./pages/VerFacturaDetalle";
 import CrearFactura from "./pages/CrearFactura"; // Asegurar importación correcta
 import "./styles/App.css";
 import { isAuthenticated } from "./api/auth";
+import 'antd/dist/reset.css';
+
+
 
 const PrivateRoute = ({ element }) => {
   return isAuthenticated() ? element : <Navigate to="/login" />;
