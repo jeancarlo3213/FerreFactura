@@ -51,7 +51,18 @@ class FacturaDetalleSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("La cantidad debe ser mayor a 0.")
         return value
+class FacturaConDetallesSerializer(serializers.ModelSerializer):
+    # Usa la relación inversa de Factura -> FacturaDetalle. Por default se llama facturadetalle_set,
+    # a menos que en tu modelo FacturaDetalle digas related_name='detalles'
+    detalles = FacturaDetalleSerializer(many=True, read_only=True, source='facturadetalle_set')
 
+    class Meta:
+        model = Factura
+        fields = [
+            'id', 'fecha_creacion', 'usuario', 'nombre_cliente',
+            'fecha_entrega', 'costo_envio', 'descuento_total',
+            'detalles'
+        ]
 class PrecioEspecialSerializer(serializers.ModelSerializer):
     class Meta:
         model = PrecioEspecial
