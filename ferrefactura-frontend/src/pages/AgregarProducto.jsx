@@ -1,105 +1,132 @@
-// src/pages/AgregarProducto.jsx
 import React, { useState } from "react";
+import { Form, Input, InputNumber, Button, Card, Typography, message } from "antd";
 import { useNavigate } from "react-router-dom";
-import { createProducto, createUsuario, createFactura } from "../api/api";
+
+const { Title } = Typography;
 
 function AgregarProducto() {
-  const [producto, setProducto] = useState({ nombre: "", precio: "", categoria: "", stock: "" });
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const token = localStorage.getItem("token");
 
-  const handleChange = (e) => {
-    setProducto({ ...producto, [e.target.name]: e.target.value });
-  };
+  const onFinish = async (values) => {
+    setLoading(true);
+    const token = localStorage.getItem("token");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (!token) {
+      message.error("No tienes permiso para realizar esta acción.");
+      setLoading(false);
+      return;
+    }
+
+    // 📌 Se aseguran los valores correctos antes de enviarlos
+    const productoData = {
+      nombre: values.nombre.trim(),
+      precio: values.precio,
+      precio_unidad: values.precio, // Siempre igual a precio
+      categoria: values.categoria.trim(),
+      stock: values.stock,
+    };
+
+    // 🔹 Si el usuario ingresa unidades_por_quintal, entonces debe haber precio_quintal.
+    if (values.unidades_por_quintal) {
+      if (!values.precio_quintal) {
+        message.error("Si ingresas unidades por quintal, debes ingresar el precio por quintal.");
+        setLoading(false);
+        return;
+      }
+      productoData.unidades_por_quintal = values.unidades_por_quintal;
+      productoData.precio_quintal = values.precio_quintal;
+    } else {
+      productoData.unidades_por_quintal = null;
+      productoData.precio_quintal = null;
+    }
+
     try {
-      await createProducto(producto, token);
-      navigate("/productos");
-    } catch  {
-      alert("Error al agregar producto");
+      const response = await fetch("http://127.0.0.1:8000/api/productos/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${token}`,
+        },
+        body: JSON.stringify(productoData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "No se pudo agregar el producto.");
+      }
+
+      message.success("✅ Producto agregado con éxito.");
+      
+      // 🔹 Redirige automáticamente después de 2 segundos
+      setTimeout(() => navigate("/productos"), 2000);
+    } catch (error) {
+      message.error(`❌ Error: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-6">
-      <h2 className="text-3xl font-bold mb-6">Agregar Producto</h2>
-      <form className="w-full max-w-md bg-gray-800 p-6 rounded-lg" onSubmit={handleSubmit}>
-        <input className="form-input" type="text" name="nombre" placeholder="Nombre" onChange={handleChange} required />
-        <input className="form-input" type="number" name="precio" placeholder="Precio" onChange={handleChange} required />
-        <input className="form-input" type="text" name="categoria" placeholder="Categoría" onChange={handleChange} required />
-        <input className="form-input" type="number" name="stock" placeholder="Stock" onChange={handleChange} required />
-        <button type="submit" className="btn-primary mt-4">Agregar</button>
-      </form>
+    <div className="flex justify-center items-center min-h-screen bg-gray-900 p-6">
+      <Card className="w-full max-w-lg bg-gray-800 text-white shadow-lg">
+        <Title level={2} className="text-center text-blue-400">
+          Agregar Producto
+        </Title>
+        <Form layout="vertical" onFinish={onFinish}>
+          <Form.Item
+            label={<span className="text-blue-300">Nombre</span>}
+            name="nombre"
+            rules={[{ required: true, message: "Ingrese el nombre del producto" }]}
+          >
+            <Input placeholder="Ej: Hierro 1/2" />
+          </Form.Item>
+
+          <Form.Item
+            label={<span className="text-blue-300">Precio (Q)</span>}
+            name="precio"
+            rules={[{ required: true, message: "Ingrese el precio del producto" }]}
+          >
+            <InputNumber min={1} className="w-full" />
+          </Form.Item>
+
+          <Form.Item
+            label={<span className="text-blue-300">Unidades por Quintal</span>}
+            name="unidades_por_quintal"
+          >
+            <InputNumber min={1} className="w-full" placeholder="Opcional" />
+          </Form.Item>
+
+          <Form.Item
+            label={<span className="text-blue-300">Precio por Quintal (Q)</span>}
+            name="precio_quintal"
+          >
+            <InputNumber min={1} className="w-full" placeholder="Opcional" />
+          </Form.Item>
+
+          <Form.Item
+            label={<span className="text-blue-300">Categoría</span>}
+            name="categoria"
+            rules={[{ required: true, message: "Ingrese la categoría" }]}
+          >
+            <Input placeholder="Ej: Materiales de Construcción" />
+          </Form.Item>
+
+          <Form.Item
+            label={<span className="text-blue-300">Stock Inicial</span>}
+            name="stock"
+            rules={[{ required: true, message: "Ingrese el stock inicial" }]}
+          >
+            <InputNumber min={0} className="w-full" />
+          </Form.Item>
+
+          <Button type="primary" htmlType="submit" loading={loading} className="w-full">
+            Agregar Producto
+          </Button>
+        </Form>
+      </Card>
     </div>
   );
 }
 
-function AgregarUsuario() {
-  const [usuario, setUsuario] = useState({ username: "", password: "", email: "" });
-  const navigate = useNavigate();
-  const token = localStorage.getItem("token");
-
-  const handleChange = (e) => {
-    setUsuario({ ...usuario, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await createUsuario(usuario, token);
-      navigate("/usuarios");
-    } catch  {
-      alert("Error al agregar usuario");
-    }
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-6">
-      <h2 className="text-3xl font-bold mb-6">Agregar Usuario</h2>
-      <form className="w-full max-w-md bg-gray-800 p-6 rounded-lg" onSubmit={handleSubmit}>
-        <input className="form-input" type="text" name="username" placeholder="Nombre de usuario" onChange={handleChange} required />
-        <input className="form-input" type="password" name="password" placeholder="Contraseña" onChange={handleChange} required />
-        <input className="form-input" type="email" name="email" placeholder="Correo electrónico" onChange={handleChange} required />
-        <button type="submit" className="btn-primary mt-4">Agregar</button>
-      </form>
-    </div>
-  );
-}
-
-function CrearFactura() {
-  const [factura, setFactura] = useState({ nombre_cliente: "", costo_envio: "", fecha_entrega: "" });
-  const navigate = useNavigate();
-  const token = localStorage.getItem("token");
-
-  const handleChange = (e) => {
-    setFactura({ ...factura, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await createFactura(factura, token);
-      navigate("/facturas");
-    } catch  {
-      alert("Error al crear factura");
-    }
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-6">
-      <h2 className="text-3xl font-bold mb-6">Crear Factura</h2>
-      <form className="w-full max-w-md bg-gray-800 p-6 rounded-lg" onSubmit={handleSubmit}>
-        <input className="form-input" type="text" name="nombre_cliente" placeholder="Nombre del Cliente" onChange={handleChange} required />
-        <input className="form-input" type="number" name="costo_envio" placeholder="Costo de Envío" onChange={handleChange} required />
-        <input className="form-input" type="date" name="fecha_entrega" placeholder="Fecha de Entrega" onChange={handleChange} required />
-        <button type="submit" className="btn-primary mt-4">Crear</button>
-      </form>
-    </div>
-  );
-}
-
-export { AgregarProducto, AgregarUsuario, CrearFactura };
-
-// Estilos adicionales
+export default AgregarProducto;

@@ -6,6 +6,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from django.utils.timezone import now  # Para obtener la fecha actual
+from django.db.models import Sum ,F # Para calcular la suma de los totales
+
 
 from .models import (
     Usuario, 
@@ -112,3 +115,88 @@ def obtener_facturas_completas(_request):
         facturas = [dict(zip(columnas, row)) for row in cursor.fetchall()]
 
     return Response(facturas)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def obtener_estadisticas_facturas(request):
+    hoy = now().date()
+    mes_actual = now().month
+
+    # Cantidad de facturas creadas hoy
+    facturas_hoy = Factura.objects.filter(fecha_creacion__date=hoy).count()
+
+    # Cantidad de facturas creadas este mes
+    facturas_mes = Factura.objects.filter(fecha_creacion__month=mes_actual).count()
+
+    # Total de ventas generadas (sumando los subtotales de FacturaDetalle)
+    total_ventas = FacturaDetalle.objects.aggregate(
+        total=Sum(F('cantidad') * F('precio_unitario'))
+    )['total'] or 0
+
+    # Ganancias del mes (sumando las ventas del mes actual)
+    ganancias_mes = FacturaDetalle.objects.filter(
+        factura__fecha_creacion__month=mes_actual
+    ).aggregate(
+        total=Sum(F('cantidad') * F('precio_unitario'))
+    )['total'] or 0
+
+    return Response({
+        "facturas_hoy": facturas_hoy,
+        "facturas_mes": facturas_mes,
+        "total_ventas": round(total_ventas, 2),
+        "ganancias_mes": round(ganancias_mes, 2)
+    })
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def obtener_ventas_anuales(request):
+    """
+    Devuelve la cantidad de ventas de cada mes del año actual.
+    """
+    año_actual = now().year
+
+    ventas_mensuales = (
+        FacturaDetalle.objects
+        .filter(factura__fecha_creacion__year=año_actual)
+        .annotate(venta_total=F('cantidad') * F('precio_unitario'))
+        .values('factura__fecha_creacion__month')
+        .annotate(total_ventas=Sum('venta_total'))
+        .order_by('factura__fecha_creacion__month')
+    )
+
+    ventas_por_mes = {i: 0 for i in range(1, 13)}  # Inicializar todos los meses con 0 ventas
+
+    for venta in ventas_mensuales:
+        mes = venta['factura__fecha_creacion__month']
+        ventas_por_mes[mes] = float(venta['total_ventas'])  # Convertir a float para evitar errores de serialización
+
+    # ✅ Asegurar que se devuelve correctamente como una respuesta de DRF
+    return Response({"ventas_por_mes": ventas_por_mes}, content_type="application/json")
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def obtener_ventas_por_dia(request):
+    """
+    Devuelve la cantidad de ventas por día del mes actual.
+    """
+    hoy = now().date()
+    mes_actual = hoy.month
+    año_actual = hoy.year
+
+    ventas_diarias = (
+        FacturaDetalle.objects
+        .filter(factura__fecha_creacion__year=año_actual, factura__fecha_creacion__month=mes_actual)
+        .annotate(venta_total=F('cantidad') * F('precio_unitario'))
+        .values('factura__fecha_creacion__day')
+        .annotate(total_ventas=Sum('venta_total'))
+        .order_by('factura__fecha_creacion__day')
+    )
+
+    ventas_por_dia = {i: 0 for i in range(1, 32)}  # Inicializar con 0 ventas para cada día del mes
+
+    for venta in ventas_diarias:
+        dia = venta['factura__fecha_creacion__day']
+        ventas_por_dia[dia] = float(venta['total_ventas'])  # Convertir a float
+
+    return Response({"ventas_por_dia": ventas_por_dia}, content_type="application/json")

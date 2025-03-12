@@ -11,8 +11,11 @@ import CrearFactura from "./pages/CrearFactura"; // Asegurar importación correc
 import "./styles/App.css";
 import { isAuthenticated } from "./api/auth";
 import 'antd/dist/reset.css';
-
-
+import AgregarProducto from "./pages/AgregarProducto";
+import ActualizarProducto from "./pages/ActualizarProducto";
+import EliminarProducto from "./pages/EliminarProducto";
+import VerProductos from "./pages/VerProductos";
+import Administrador from "./pages/Administrador";
 
 const PrivateRoute = ({ element }) => {
   return isAuthenticated() ? element : <Navigate to="/login" />;
@@ -31,6 +34,12 @@ function App() {
         <Route path="/usuarios" element={<PrivateRoute element={<Usuarios />} />} />
         <Route path="/productos" element={<PrivateRoute element={<Productos />} />} />
         <Route path="/crearfactura" element={<PrivateRoute element={<CrearFactura />} />} />
+        <Route path="/productos" element={<Productos />} />
+        <Route path="/productos/agregar" element={<AgregarProducto />} />
+        <Route path="/productos/actualizar" element={<ActualizarProducto />} />
+        <Route path="/productos/eliminar" element={<EliminarProducto />} />
+        <Route path="/productos/ver" element={<VerProductos />} />
+        <Route path="/administrador" element={<Administrador />} />
       </Routes>
     </>
   );
