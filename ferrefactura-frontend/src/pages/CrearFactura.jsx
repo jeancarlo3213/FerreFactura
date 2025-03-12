@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-// 🔹 Componentes de Ant Design
+// Ant Design
 import { Input, Button, message } from "antd";
-// 🔹 Íconos de react-icons
-import { FaPlus, FaCheckCircle, FaSearch } from "react-icons/fa";
+// React Icons
+import { FaPlus, FaCheckCircle, FaSearch, FaTrash } from "react-icons/fa";
 
 function CrearFactura() {
   const [productos, setProductos] = useState([]);
@@ -24,7 +24,7 @@ function CrearFactura() {
 
   const token = localStorage.getItem("token");
 
-  // 🔸 Cargar productos desde el backend
+  // Cargar productos desde el backend
   useEffect(() => {
     const fetchProductos = async () => {
       try {
@@ -51,6 +51,7 @@ function CrearFactura() {
               : null,
             stockQuintales,
             unidadesRestantes,
+            // Valor por si se aplica descuento unitario
             descuentoPorUnidad: 0,
           };
         });
@@ -65,18 +66,23 @@ function CrearFactura() {
     fetchProductos();
   }, [token]);
 
-  // 🔸 Calcular total de la factura
+  // Calcular total de la factura
   const calcularTotal = useCallback(() => {
     const totalProductos = productosSeleccionados.reduce((acc, p) => {
+      // Convertir quintales a unidades
+      const totalUnidadesQuintal = p.precio_quintal
+        ? p.cantidadQuintales * (p.unidades_por_quintal || 1)
+        : 0;
       const subtotal =
-        p.cantidadQuintales * (p.precio_quintal || 0) +
-        p.cantidadUnidades * (p.precio || 0) -
+        (totalUnidadesQuintal + p.cantidadUnidades) * (p.precio || 0) -
         p.descuentoPorUnidad * p.cantidadUnidades;
       return acc + subtotal;
     }, 0);
 
     setTotalFactura(
-      totalProductos + (parseFloat(costoEnvio) || 0) - (parseFloat(descuentoTotal) || 0)
+      totalProductos +
+        (parseFloat(costoEnvio) || 0) -
+        (parseFloat(descuentoTotal) || 0)
     );
   }, [productosSeleccionados, costoEnvio, descuentoTotal]);
 
@@ -84,19 +90,39 @@ function CrearFactura() {
     calcularTotal();
   }, [productosSeleccionados, costoEnvio, descuentoTotal, calcularTotal]);
 
-  // 🔸 Modificar cantidad/quintal
+  // Quitar producto de seleccionados
+  const quitarProducto = (id) => {
+    setProductosSeleccionados((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  // Modificar cantidad/quintal
   const modificarCantidad = (id, campo, valor) => {
     setProductosSeleccionados((prev) =>
       prev.map((p) => {
         if (p.id === id) {
-          const nuevoValor = parseFloat(valor) || 0;
+          let nuevoValor = parseFloat(valor) || 0;
           if (nuevoValor < 0) return p;
-          if (campo === "cantidadUnidades" && nuevoValor > p.unidadesRestantes) {
-            return p;
+
+          // Calcular total de unidades que se van a consumir
+          let { cantidadQuintales, cantidadUnidades } = p;
+          if (campo === "cantidadQuintales") {
+            cantidadQuintales = nuevoValor;
+          } else if (campo === "cantidadUnidades") {
+            cantidadUnidades = nuevoValor;
           }
-          if (campo === "cantidadQuintales" && nuevoValor > p.stockQuintales) {
-            return p;
+
+          // totalUnidadesConsumidas = quintales * (unidades_por_quintal) + cantidadUnidades
+          const totalUnidadesQuintal = p.precio_quintal
+            ? cantidadQuintales * (p.unidades_por_quintal || 1)
+            : 0;
+          const totalNecesarias = totalUnidadesQuintal + cantidadUnidades;
+
+          // Revisar si no excede el stock
+          if (totalNecesarias > p.stock) {
+            message.warning("No hay suficiente stock para esa cantidad");
+            return p; // No actualiza
           }
+
           return { ...p, [campo]: nuevoValor };
         }
         return p;
@@ -105,35 +131,42 @@ function CrearFactura() {
     calcularTotal();
   };
 
-  // 🔸 Modificar descuento por unidad
+  // Modificar descuento por unidad
   const modificarDescuento = (id, valor) => {
     setProductosSeleccionados((prev) =>
       prev.map((p) =>
-        p.id === id
-          ? { ...p, descuentoPorUnidad: parseFloat(valor) || 0 }
-          : p
+        p.id === id ? { ...p, descuentoPorUnidad: parseFloat(valor) || 0 } : p
       )
     );
     calcularTotal();
   };
 
-  // 🔸 Confirmar Factura (Crear + actualizar stock + redirigir)
+  // Confirmar Factura
   const confirmarFactura = async () => {
+    // Preparar payload
     const payload = {
       nombre_cliente: nombreCliente,
       fecha_entrega: fechaEntrega,
       costo_envio: costoEnvio,
       descuento_total: descuentoTotal,
-      usuario_id: 1, // Ajusta si tu backend lo requiere
-      productos: productosSeleccionados.map((prod) => ({
-        producto_id: prod.id,
-        cantidad: prod.cantidadUnidades,
-        precio_unitario: prod.precio,
-      })),
+      usuario_id: 1, // Ajustar si tu backend lo requiere
+      productos: productosSeleccionados.map((prod) => {
+        // totalUnidadesConsumidas:
+        const totalUnidadesQuintal = prod.precio_quintal
+          ? prod.cantidadQuintales * (prod.unidades_por_quintal || 1)
+          : 0;
+        const totalUnidades = totalUnidadesQuintal + prod.cantidadUnidades;
+
+        return {
+          producto_id: prod.id,
+          cantidad: totalUnidades,
+          precio_unitario: prod.precio,
+        };
+      }),
     };
 
     try {
-      // 1) Crear la Factura
+      // Crear la factura
       const response = await fetch("http://127.0.0.1:8000/api/facturas/", {
         method: "POST",
         headers: {
@@ -146,13 +179,19 @@ function CrearFactura() {
       if (!response.ok) {
         throw new Error("Error al crear la factura");
       }
+
       const data = await response.json();
 
-      // 2) Actualizar stock de cada producto
-      // (ejemplo simple restando la cantidadUnidades del p.stock)
+      // Actualizar stock en el backend
       for (const prodSel of productosSeleccionados) {
-        const nuevoStock = prodSel.stock - prodSel.cantidadUnidades;
-        // PATCH al endpoint de producto
+        const totalUnidadesQuintal = prodSel.precio_quintal
+          ? prodSel.cantidadQuintales * (prodSel.unidades_por_quintal || 1)
+          : 0;
+        const totalUnidadesConsumidas =
+          totalUnidadesQuintal + prodSel.cantidadUnidades;
+
+        const nuevoStock = prodSel.stock - totalUnidadesConsumidas;
+
         await fetch(`http://127.0.0.1:8000/api/productos/${prodSel.id}/`, {
           method: "PATCH",
           headers: {
@@ -163,18 +202,22 @@ function CrearFactura() {
         });
       }
 
-      // 3) Mensaje bonito con Ant Design
       message.success(`¡Factura creada con éxito! ID: ${data.id}`, 3);
 
-      // 4) Redirigir
       navigate(`/verfactura/${data.id}`);
     } catch (error) {
       message.error(`Error: ${error.message}`);
     }
   };
 
-  // 🔸 Agregar producto a la lista
+  // Agregar producto a la lista
   const agregarProducto = (producto) => {
+    // Si stock <= 0, no se puede agregar
+    if (producto.stock <= 0) {
+      message.warning("Este producto no tiene stock disponible");
+      return;
+    }
+
     setProductosSeleccionados((prev) => {
       const existe = prev.find((p) => p.id === producto.id);
       if (existe) {
@@ -202,7 +245,7 @@ function CrearFactura() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto bg-gray-900 text-white rounded-lg shadow-lg">
+    <div className="p-6 max-w-5xl mx-auto bg-gray-900 text-white rounded-lg shadow-lg">
       {/* Título principal */}
       <h1 className="text-3xl font-bold text-center mb-6">
         FERRETERÍA EL CAMPESINO
@@ -246,7 +289,7 @@ function CrearFactura() {
       </div>
 
       {/* Lista de Productos Seleccionados */}
-      <h2 className="text-xl font-semibold mt-6">
+      <h2 className="text-xl font-semibold mt-6 mb-2">
         Lista de Productos Seleccionados
       </h2>
       {productosSeleccionados.map((p) => (
@@ -254,10 +297,11 @@ function CrearFactura() {
           key={p.id}
           className="flex justify-between items-center p-3 border-b border-gray-700"
         >
-          <span>{p.nombre}</span>
+          <span className="flex-1">{p.nombre}</span>
 
+          {/* Cantidad por Quintal */}
           {p.precio_quintal !== null && (
-            <div className="text-center">
+            <div className="text-center mx-2">
               <span className="block text-sm text-gray-400">
                 Cantidad por Quintal
               </span>
@@ -273,7 +317,8 @@ function CrearFactura() {
             </div>
           )}
 
-          <div className="text-center">
+          {/* Cantidad por Unidad */}
+          <div className="text-center mx-2">
             <span className="block text-sm text-gray-400">
               Cantidad por Unidad
             </span>
@@ -288,7 +333,8 @@ function CrearFactura() {
             />
           </div>
 
-          <div className="text-center">
+          {/* Descuento por Unidad */}
+          <div className="text-center mx-2">
             <span className="block text-sm text-gray-400">
               Descuento por Unidad
             </span>
@@ -301,20 +347,33 @@ function CrearFactura() {
             />
           </div>
 
-          <span className="font-bold">
-            Total: Q
-            {(
-              p.cantidadQuintales * (p.precio_quintal || 0) +
-              p.cantidadUnidades * (p.precio || 0) -
-              p.descuentoPorUnidad * p.cantidadUnidades
-            ).toFixed(2)}
+          {/* Total por producto */}
+          <span className="font-bold mx-2">
+            {(() => {
+              // Para mostrar el total de este producto: quintales→unidades + p.cantidadUnidades
+              const totalUnidadesQuintal = p.precio_quintal
+                ? p.cantidadQuintales * (p.unidades_por_quintal || 1)
+                : 0;
+              const subtotal =
+                (totalUnidadesQuintal + p.cantidadUnidades) * (p.precio || 0) -
+                p.descuentoPorUnidad * p.cantidadUnidades;
+              return `Total: Q${subtotal.toFixed(2)}`;
+            })()}
           </span>
+
+          {/* Botón para quitar producto */}
+          <Button
+            type="ghost"
+            icon={<FaTrash />}
+            onClick={() => quitarProducto(p.id)}
+            className="!border-none text-red-400 hover:text-red-600"
+          />
         </div>
       ))}
 
-      {/* 🔎 Input de búsqueda de productos */}
+      {/* Input de búsqueda de productos */}
       <div className="mt-6">
-        <label className="block text-sm text-gray-300">
+        <label className="block text-sm text-gray-300 mb-1">
           <FaSearch className="inline mr-2" />
           Buscar producto (por nombre o ID)
         </label>
@@ -326,8 +385,8 @@ function CrearFactura() {
         />
       </div>
 
-      {/* Lista de Productos Disponibles (filtrados en línea) */}
-      <h2 className="text-xl font-semibold mt-4">
+      {/* Lista de Productos Disponibles */}
+      <h2 className="text-xl font-semibold mt-4 mb-2">
         Lista de Productos Disponibles
       </h2>
       {productos
@@ -355,10 +414,7 @@ function CrearFactura() {
               </span>
             )}
             <span>
-              Stock:{" "}
-              {producto.stockQuintales
-                ? `${producto.stockQuintales} quintales, ${producto.unidadesRestantes} unidades`
-                : `${producto.unidadesRestantes} unidades`}
+              Stock: {producto.stock > 0 ? producto.stock : 0} unidades
             </span>
             <Button
               type="default"
@@ -367,6 +423,8 @@ function CrearFactura() {
                 agregarProducto(producto);
               }}
               className="bg-blue-500 text-white border-none hover:bg-blue-600"
+              // Deshabilitar si no hay stock
+              disabled={producto.stock <= 0}
             >
               Agregar
             </Button>
