@@ -6,10 +6,25 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from .models import Usuario, Producto, Factura, FacturaDetalle, PrecioEspecial, Descuento
-from .serializers import UsuarioSerializer, ProductoSerializer, FacturaSerializer, FacturaDetalleSerializer, PrecioEspecialSerializer, DescuentoSerializer
 
-# Página de bienvenida
+from .models import (
+    Usuario, 
+    Producto, 
+    Factura, 
+    FacturaDetalle, 
+    PrecioEspecial, 
+    Descuento
+)
+from .serializers import (
+    UsuarioSerializer, 
+    ProductoSerializer, 
+    FacturaSerializer, 
+    FacturaDetalleSerializer, 
+    PrecioEspecialSerializer, 
+    DescuentoSerializer,
+    FacturaConDetallesSerializer  # <-- Importa tu nuevo serializer anidado
+)
+
 def api_root(request):
     return JsonResponse({"message": "Bienvenido a la API de FerreFactura"})
 
@@ -22,7 +37,6 @@ def home(request):
 def protected_endpoint(request):
     return Response({"message": "Access granted!"})
 
-# ViewSets
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
@@ -35,8 +49,15 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
 class FacturaViewSet(viewsets.ModelViewSet):
     queryset = Factura.objects.all()
-    serializer_class = FacturaSerializer
+    serializer_class = FacturaSerializer  # Por defecto
     permission_classes = [IsAuthenticated]
+
+    # 🔸 Sobrescribimos get_serializer_class
+    # Para 'retrieve' y 'list', usar FacturaConDetallesSerializer
+    def get_serializer_class(self):
+        if self.action in ['retrieve', 'list']:
+            return FacturaConDetallesSerializer
+        return FacturaSerializer
 
     def create(self, request, *args, **kwargs):
         try:
@@ -48,10 +69,12 @@ class FacturaViewSet(viewsets.ModelViewSet):
                     "costo_envio": request.data.get("costo_envio", 0),
                     "descuento_total": request.data.get("descuento_total", 0),
                 }
+                # Creamos la Factura
                 factura = Factura.objects.create(**factura_data)
 
+                # Creamos los detalles
                 for detalle in request.data.get("productos", []):
-                    producto = get_object_or_404(Producto, id=detalle["producto_id"])  # Mejor manejo de errores
+                    producto = get_object_or_404(Producto, id=detalle["producto_id"])
                     FacturaDetalle.objects.create(
                         factura=factura,
                         producto=producto,
@@ -79,7 +102,7 @@ class DescuentoViewSet(viewsets.ModelViewSet):
     serializer_class = DescuentoSerializer
     permission_classes = [IsAuthenticated]
 
-# 🔹 Vista para obtener facturas completas
+# 🔹 Vista para obtener facturas completas (con la vista / vw_FacturasCompletas)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def obtener_facturas_completas(_request):
@@ -87,5 +110,5 @@ def obtener_facturas_completas(_request):
         cursor.execute("SELECT * FROM vw_FacturasCompletas")
         columnas = [col[0] for col in cursor.description]
         facturas = [dict(zip(columnas, row)) for row in cursor.fetchall()]
-    
+
     return Response(facturas)

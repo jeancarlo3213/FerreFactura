@@ -22,3 +22,40 @@ button {
 .btn-danger {
   @apply bg-danger text-white hover:bg-red-700;
 }
+
+
+
+
+@media print {
+  button, .no-print {
+    display: none !important;
+  }
+
+  body {
+    font-size: 12px; /* Tamaño de fuente pequeño */
+    font-family: Arial, sans-serif;
+  }
+
+  .print-container {
+    width: 80mm; /* Ajustar al ancho de un recibo térmico */
+    margin: auto;
+  }
+
+  h1, h2 {
+    font-size: 14px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  table, th, td {
+    border: 1px solid black;
+  }
+
+  th, td {
+    padding: 5px;
+    text-align: left;
+  }
+}

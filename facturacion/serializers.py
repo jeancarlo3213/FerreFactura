@@ -42,27 +42,7 @@ class FacturaSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("El descuento total no puede ser negativo.")
         return value
 
-class FacturaDetalleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FacturaDetalle
-        fields = '__all__'
-    
-    def validate_cantidad(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("La cantidad debe ser mayor a 0.")
-        return value
-class FacturaConDetallesSerializer(serializers.ModelSerializer):
-    # Usa la relación inversa de Factura -> FacturaDetalle. Por default se llama facturadetalle_set,
-    # a menos que en tu modelo FacturaDetalle digas related_name='detalles'
-    detalles = FacturaDetalleSerializer(many=True, read_only=True, source='facturadetalle_set')
 
-    class Meta:
-        model = Factura
-        fields = [
-            'id', 'fecha_creacion', 'usuario', 'nombre_cliente',
-            'fecha_entrega', 'costo_envio', 'descuento_total',
-            'detalles'
-        ]
 class PrecioEspecialSerializer(serializers.ModelSerializer):
     class Meta:
         model = PrecioEspecial
@@ -72,6 +52,66 @@ class PrecioEspecialSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("El precio especial debe ser mayor a 0.")
         return value
+from rest_framework import serializers
+from .models import Usuario, Producto, Factura, FacturaDetalle, PrecioEspecial, Descuento
+
+class UsuarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Usuario
+        fields = '__all__'
+
+class ProductoSerializer(serializers.ModelSerializer):
+    precio = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
+
+    class Meta:
+        model = Producto
+        fields = '__all__'
+
+class FacturaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Factura
+        fields = '__all__'
+
+class FacturaDetalleSerializer(serializers.ModelSerializer):
+    # Añadir información extra del producto
+    producto_nombre = serializers.CharField(source="producto.nombre", read_only=True)
+    precio_quintal = serializers.DecimalField(source="producto.precio_quintal", max_digits=10, decimal_places=2, read_only=True)
+    precio_unidad = serializers.DecimalField(source="producto.precio_unidad", max_digits=10, decimal_places=2, read_only=True)
+    unidades_por_quintal = serializers.IntegerField(source="producto.unidades_por_quintal", read_only=True)
+    categoria = serializers.CharField(source="producto.categoria", read_only=True)
+
+    class Meta:
+        model = FacturaDetalle
+        fields = [
+            "id",
+            "cantidad",
+            "precio_unitario",
+            "tipo_venta",
+            "factura",
+            "producto",
+            "producto_nombre",
+            "precio_quintal",
+            "precio_unidad",
+            "unidades_por_quintal",
+            "categoria",
+        ]
+
+# Serializer anidado que incluye los detalles dentro de la factura
+class FacturaConDetallesSerializer(serializers.ModelSerializer):
+    detalles = FacturaDetalleSerializer(many=True, read_only=True, source='facturadetalle_set')
+
+    class Meta:
+        model = Factura
+        fields = [
+            'id', 
+            'fecha_creacion', 
+            'usuario', 
+            'nombre_cliente',
+            'fecha_entrega', 
+            'costo_envio', 
+            'descuento_total',
+            'detalles'
+        ]
 
 class DescuentoSerializer(serializers.ModelSerializer):
     class Meta:
