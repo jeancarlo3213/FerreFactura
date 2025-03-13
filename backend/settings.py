@@ -67,7 +67,7 @@ MIDDLEWARE = [
 
 ]
 
-ROOT_URLCONF = 'FerreFac.urls'
+ROOT_URLCONF = 'FerreFactura.urls'
 
 TEMPLATES = [
     {
