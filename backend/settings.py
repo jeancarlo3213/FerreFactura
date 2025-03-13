@@ -85,7 +85,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'FerreFac.wsgi.application'
+WSGI_APPLICATION = 'FerreFactura.wsgi.application'
 
 
 # Database

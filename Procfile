@@ -1,1 +1,1 @@
-web: gunicorn FerreFac.wsgi --log-file -
+web: gunicorn FerreFactura.wsgi --log-file -
