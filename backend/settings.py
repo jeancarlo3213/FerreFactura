@@ -26,8 +26,16 @@ SECRET_KEY = 'django-insecure-q2jbwt046-6ys=aov%odfm4tw(q5t=4w&qq*#5-et&9nqp#f9k
 DEBUG = True
 
 import os
+from pathlib import Path
 
-ALLOWED_HOSTS = ["*"]  # Para pruebas, luego cámbialo a tu dominio real
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'clave-segura-por-defecto')
+
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
+
+ALLOWED_HOSTS = ['*']  # Si quieres restringir, agrega el dominio de Railway cuando lo tengas
+# Para pruebas, luego cámbialo a tu dominio real
 
 # Application definition
 
@@ -86,7 +94,7 @@ WSGI_APPLICATION = 'FerreFac.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': os.getenv('DB_NAME', 'FerreteriaDB'),  # Usa variable de entorno
+        'NAME': os.getenv('DB_NAME', 'FerreteriaDB'),
         'USER': os.getenv('DB_USER', 'adminferreteria'),
         'PASSWORD': os.getenv('DB_PASSWORD', 'Ferreteria2024!'),
         'HOST': os.getenv('DB_HOST', 'ferrecampesino.database.windows.net'),
@@ -99,6 +107,7 @@ DATABASES = {
         },
     }
 }
+
 
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 STATIC_URL = "/static/"
