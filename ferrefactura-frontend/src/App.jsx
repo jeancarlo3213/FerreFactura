@@ -16,7 +16,9 @@ import ActualizarProducto from "./pages/ActualizarProducto";
 import EliminarProducto from "./pages/EliminarProducto";
 import VerProductos from "./pages/VerProductos";
 import Administrador from "./pages/Administrador";
-
+import Historial from "./pages/Historial";
+import CajaDiaria from "./pages/CajaDiaria";
+import Deudores from "./pages/Deudores";
 const PrivateRoute = ({ element }) => {
   return isAuthenticated() ? element : <Navigate to="/login" />;
 };
@@ -40,6 +42,9 @@ function App() {
         <Route path="/productos/eliminar" element={<EliminarProducto />} />
         <Route path="/productos/ver" element={<VerProductos />} />
         <Route path="/administrador" element={<Administrador />} />
+        <Route path="/historial" element={<Historial />} />
+        <Route path="/caja-diaria" element={<CajaDiaria />} />
+        <Route path="/deudores" element={<Deudores />} />
       </Routes>
     </>
   );
